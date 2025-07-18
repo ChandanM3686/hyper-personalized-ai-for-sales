@@ -210,7 +210,7 @@ if 'selected_tool' not in st.session_state:
     st.session_state.selected_tool = list(TOOL_MAP.keys())[0]
 
 with st.sidebar:
-    st.header("1. Upload Required Documents")
+    st.header("1. Upload Business Documents (any subset)")
     for doc in REQUIRED_DOCS:
         uploaded = st.file_uploader(f"Upload {doc.replace('_', ' ').title()}", type=["pdf", "docx", "pptx", "txt", "csv", "xlsx"], key=doc)
         if uploaded:
@@ -223,24 +223,27 @@ with st.sidebar:
     st.session_state.selected_tool = st.selectbox("Choose a content generator tool:", list(TOOL_MAP.keys()), format_func=lambda x: TOOL_MAP[x])
 
 st.subheader("Upload Status:")
+any_uploaded = False
 for doc in REQUIRED_DOCS:
     if st.session_state.uploaded_files[doc]:
         st.write(f"✅ {doc.replace('_', ' ').title()} uploaded.")
+        any_uploaded = True
     else:
         st.write(f"❌ {doc.replace('_', ' ').title()} not uploaded.")
 
-if all(st.session_state.uploaded_files[doc] for doc in REQUIRED_DOCS):
+if any_uploaded:
     if st.button(f"Generate {TOOL_MAP[st.session_state.selected_tool]}"):
         # Save files to temp dir and extract text
         docs_content = []
         with tempfile.TemporaryDirectory() as tmpdir:
             for doc in REQUIRED_DOCS:
                 uploaded = st.session_state.uploaded_files[doc]
-                ext = os.path.splitext(uploaded.name)[1].lower()
-                temp_path = os.path.join(tmpdir, doc + ext)
-                with open(temp_path, 'wb') as f:
-                    f.write(uploaded.read())
-                docs_content.append(extract_text_from_file(temp_path))
+                if uploaded:
+                    ext = os.path.splitext(uploaded.name)[1].lower()
+                    temp_path = os.path.join(tmpdir, doc + ext)
+                    with open(temp_path, 'wb') as f:
+                        f.write(uploaded.read())
+                    docs_content.append(extract_text_from_file(temp_path))
             data = '\n'.join(docs_content)
             with st.spinner("Generating content..."):
                 try:
@@ -249,7 +252,7 @@ if all(st.session_state.uploaded_files[doc] for doc in REQUIRED_DOCS):
                 except Exception as e:
                     st.error(f"Error generating content: {e}")
 else:
-    st.info("Please upload all required documents to enable content generation.")
+    st.info("Please upload at least one business document to enable content generation.")
 
 if st.session_state.result:
     st.subheader(f"{TOOL_MAP[st.session_state.selected_tool]} Result:")
